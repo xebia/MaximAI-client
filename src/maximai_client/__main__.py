@@ -88,8 +88,7 @@ def main(
                     break
 
                 response = generate_response_mp3(query, user_id=user_id, logger=logger)
-                song = AudioSegment.from_mp3(str(response))
-                play(song)
+
                 # say_response(orca=orca, response=response, logger=logger)
     except KeyboardInterrupt:
         pass
@@ -208,6 +207,9 @@ def generate_response_mp3(query: str, user_id: str, logger, output_wav_file: str
             output_path = output_path / output_wav_file
             with output_path.open("wb",) as f:
                 f.write(response.content)
+
+            song = AudioSegment.from_mp3(str(output_path))
+            play(song)
 
         return str(output_path)
 
