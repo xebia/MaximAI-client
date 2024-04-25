@@ -203,8 +203,10 @@ def generate_response_mp3(query: str, user_id: str, logger, output_wav_file: str
 
         # Write the response content to a .wav file
         with tempfile.TemporaryDirectory() as tmp_dir:
-            output_path = Path(tmp_dir) / output_wav_file
-            with open(output_path, 'wb') as f:
+            output_path = Path(tmp_dir)
+            output_path.mkdir(parents=True, exist_ok=True)
+            output_path = output_path / output_wav_file
+            with output_path.open("wb",) as f:
                 f.write(response.content)
 
         return str(output_path)
