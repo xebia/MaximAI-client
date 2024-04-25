@@ -25,6 +25,7 @@ from pydantic import BaseModel
 from pydub import AudioSegment
 from pydub.playback import play
 import typer
+import num2words
 
 API_ERROR_RESPONSE = "Sorry, I didn't understand. Can you repeat what you said?"
 END_PHRASES = {"by max.", "bye max.", "goodbye max."}
@@ -56,9 +57,7 @@ def main(
             print("Device #%d: %s" % (index, name))
         return
 
-    logging.basicConfig(
-        format='[%(asctime)s] - %(levelname)-8s - %(message)s'
-    )
+    logging.basicConfig(format="[%(asctime)s] - %(levelname)-8s - %(message)s")
 
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
@@ -131,7 +130,6 @@ def listen_input(recorder, cheetah, logger) -> str:
     recorder.start()
 
     try:
-
         is_endpoint = False
         transcript = ""
         while not is_endpoint:
@@ -188,9 +186,13 @@ def say_response(orca, response, logger, file_name="speech.wav"):
 
 
 def sanitize(text: str) -> str:
-    return re.sub(
-        "[^a-zA-Z0-9\.\,\-\s'?!:]", "", text.replace("\n", "").replace("’", "'")
+    sanitized= re.sub(
+        "[^a-zA-Z0-9\.\,\-\s'?!:]",
+        "",
+        text.replace("\n", " ").replace("\r", " ").replace("’", "'"),
     )
+    sanitized = re.sub(r"(\d+)", lambda x: num2words.num2words(int(x.group(0))), sanitized)
+    return sanitized
 
 
 if __name__ == "__main__":
