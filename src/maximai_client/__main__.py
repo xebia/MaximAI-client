@@ -15,6 +15,8 @@ from pydub import AudioSegment
 from pydub.playback import play
 import typer
 import num2words
+# import wave
+import numpy as np
 
 API_ERROR_RESPONSE = "Sorry, I didn't understand. Can you repeat what you said?"
 END_PHRASES = {"by max.", "bye max.", "goodbye max."}
@@ -63,7 +65,7 @@ def main(
         enable_automatic_punctuation=not disable_automatic_punctuation,
     )
 
-    orca = pvorca.create(access_key=access_key)
+    # orca = pvorca.create(access_key=access_key)
 
     try:
         recorder = PvRecorder(
@@ -82,11 +84,13 @@ def main(
 
                 if query.lower() in END_PHRASES:
                     # TODO: Add name!
-                    say_response(orca=orca, response="Goodbye!")
+                    # say_response(orca=orca, response="Goodbye!")
                     break
 
-                response = generate_response(query, user_id=user_id, logger=logger)
-                say_response(orca=orca, response=response, logger=logger)
+                response = generate_response_mp3(query, user_id=user_id, logger=logger)
+                song = AudioSegment.from_mp3(str(response))
+                play(song)
+                # say_response(orca=orca, response=response, logger=logger)
     except KeyboardInterrupt:
         pass
     except (
@@ -97,7 +101,7 @@ def main(
     finally:
         porcupine.delete()
         cheetah.delete()
-        orca.delete()
+        # orca.delete()
 
 
 def listen_wake(recorder, porcupine, logger):
@@ -136,6 +140,30 @@ def listen_input(recorder, cheetah, logger) -> str:
     return transcript
 
 
+# def listen_input_wav(recorder, cheetah, logger):
+#     logger.info("Listening for input")
+#     recorder.start()
+#     audiodata = []
+#
+#     try:
+#         is_endpoint = False
+#
+#         while not is_endpoint:
+#             audiodata.append(recorder.read())
+#
+#     finally:
+#         recorder.stop()
+#         audio_data_np = np.concatenate(audiodata)
+#         with wave.open('keyword_detected.wav', 'w') as wav_file:
+#             wav_file.setnchannels(1)
+#             wav_file.setsampwidth(recorder.sample_width)
+#             wav_file.setframerate(recorder.sample_rate)
+#             wav_file.writeframes(audio_data_np.tobytes())
+#
+#         logger.info("Finished input")
+#
+#         return 'keyword_detected.wav'
+
 def generate_response(query: str, user_id: str, logger) -> str:
     prompt = Prompt(text=query, user_id=user_id)
 
@@ -158,6 +186,29 @@ def generate_response(query: str, user_id: str, logger) -> str:
         logger.error(exc)
         return API_ERROR_RESPONSE
 
+
+def generate_response_mp3(query: str, user_id: str, logger, output_wav_file: str = "response.mp3") -> str:
+    prompt = Prompt(text=query, user_id=user_id)
+
+    logger.info("Sending prompt")
+    logging.debug(f"Prompt value: {prompt}")
+
+    try:
+        response = httpx.post(
+            url="https://maximai-v2-cnc2gks64q-ez.a.run.app/text_audio",
+            json=prompt.model_dump(),
+            timeout=10.0,
+        )
+        response.raise_for_status()
+
+        # Write the response content to a .wav file
+        with open(output_wav_file, 'wb') as f:
+            f.write(response.content)
+
+        return output_wav_file
+    except Exception as exc:
+        logger.error(exc)
+        return API_ERROR_RESPONSE
 
 def say_response(orca, response, logger, file_name="speech.wav"):
     logger.info("Saying response")
