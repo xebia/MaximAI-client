@@ -56,6 +56,10 @@ def main(
             print("Device #%d: %s" % (index, name))
         return
 
+    logging.basicConfig(
+        format='[%(asctime)s] - %(levelname)-8s - %(message)s'
+    )
+
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
 
@@ -82,23 +86,19 @@ def main(
 
         # listen_conversation(recorder, cheetah)
 
-        try:
+        while True:
+            listen_wake(recorder, porcupine, logger=logger)
+
             while True:
-                listen_wake(recorder, porcupine, logger=logger)
+                query = listen_input(recorder, cheetah, logger=logger)
 
-                while True:
-                    query = listen_query(recorder, cheetah, logger=logger)
+                if query.lower() in END_PHRASES:
+                    # TODO: Add name!
+                    say_response(orca=orca, response="Goodbye!")
+                    break
 
-                    if query.lower() in END_PHRASES:
-                        # TODO: Add name!
-                        say_response(orca=orca, response="Goodbye!")
-                        break
-
-                    response = generate_response(query, user_id=user_id, logger=logger)
-                    say_response(orca=orca, response=response, logger=logger)
-        finally:
-            print()
-            recorder.stop()
+                response = generate_response(query, user_id=user_id, logger=logger)
+                say_response(orca=orca, response=response, logger=logger)
     except KeyboardInterrupt:
         pass
     except (
@@ -113,31 +113,38 @@ def main(
 
 
 def listen_wake(recorder, porcupine, logger):
-    logger.info("Listing for wakeword")
+    logger.info("Listening for wakeword")
     recorder.start()
-    keyword_index = -1
-    while keyword_index == -1:
-        keyword_index = porcupine.process(recorder.read())
-    recorder.stop()
+
+    try:
+        keyword_index = -1
+        while keyword_index == -1:
+            keyword_index = porcupine.process(recorder.read())
+    finally:
+        recorder.stop()
+
     logger.info("Detected wakeword!")
 
 
-def listen_query(recorder, cheetah, logger) -> str:
-    logger.info("Listening for query")
+def listen_input(recorder, cheetah, logger) -> str:
+    logger.info("Listening for input")
     recorder.start()
 
-    is_endpoint = False
-    transcript = ""
-    while not is_endpoint:
-        partial_transcript, is_endpoint = cheetah.process(recorder.read())
-        transcript += partial_transcript
-        # print(partial_transcript, end="", flush=True)
-    transcript += cheetah.flush()
+    try:
 
-    logger.debug(f"Received query: {transcript}")
+        is_endpoint = False
+        transcript = ""
+        while not is_endpoint:
+            partial_transcript, is_endpoint = cheetah.process(recorder.read())
+            transcript += partial_transcript
+            # print(partial_transcript, end="", flush=True)
+        transcript += cheetah.flush()
 
-    recorder.stop()
-    logger.info("Finished query")
+        logger.debug(f"Received input: {transcript}")
+    finally:
+        recorder.stop()
+
+    logger.info("Finished input")
 
     return transcript
 
