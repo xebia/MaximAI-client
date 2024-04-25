@@ -15,19 +15,34 @@ import tempfile
 from typing import Annotated
 
 import dotenv
+import httpx
 import pvcheetah
 import pvporcupine
 import pvorca
 from pvrecorder import PvRecorder
+from pydantic import BaseModel
 from pydub import AudioSegment
 from pydub.playback import play
 import typer
 
+API_ERROR_RESPONSE = "Sorry, I didn't understand. Can you repeat what you said?"
 END_PHRASES = {"by max.", "bye max.", "goodbye max."}
+
+
+class Prompt(BaseModel):
+    text: str
+    user_id: str
+
+
+class Result(BaseModel):
+    input_message: str
+    output_message: str
+    user_id: str
 
 
 def main(
     *,
+    user_id: Annotated[str, typer.Option()],
     access_key: Annotated[str, typer.Option(envvar="PV_ACCESS_KEY")],
     wakeword_model_path: Path = "models/wakeword.ppn",
     endpoint_duration_sec: float = 1.0,
@@ -40,8 +55,8 @@ def main(
             print("Device #%d: %s" % (index, name))
         return
 
-    logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
 
     porcupine = pvporcupine.create(
         access_key=access_key, keyword_paths=[wakeword_model_path]
@@ -56,7 +71,6 @@ def main(
     )
 
     orca = pvorca.create(access_key=access_key)
-    orca
 
     try:
         recorder = PvRecorder(
@@ -79,7 +93,7 @@ def main(
                         say_response(orca=orca, response="Goodbye!")
                         break
 
-                    response = generate_response(query)
+                    response = generate_response(query, user_id=user_id, logger=logger)
                     say_response(orca=orca, response=response)
         finally:
             print()
@@ -116,8 +130,10 @@ def listen_query(recorder, cheetah, logger) -> str:
     while not is_endpoint:
         partial_transcript, is_endpoint = cheetah.process(recorder.read())
         transcript += partial_transcript
-        print(partial_transcript, end="", flush=True)
+        # print(partial_transcript, end="", flush=True)
     transcript += cheetah.flush()
+
+    logger.debug(f"Received query: {transcript}")
 
     recorder.stop()
     logger.info("Finished query")
@@ -125,8 +141,29 @@ def listen_query(recorder, cheetah, logger) -> str:
     return transcript
 
 
-def generate_response(query: str) -> str:
-    return query
+def generate_response(query: str, user_id:str, logger) -> str:
+    prompt = Prompt(
+        text=query,
+        user_id=user_id
+    )
+
+    logger.info("Sending prompt")
+    logging.debug(f"Prompt value: {prompt}")
+
+    try:
+        response = httpx.post(
+            url="https://maximai-cnc2gks64q-ez.a.run.app/chat",
+            json=prompt.model_dump()
+        )
+        response.raise_for_status()
+
+        result = Result(**response.json())
+        logger.debug(f"Received response: {result}")
+
+        return result.output_message
+    except Exception as exc:
+        logger.error(exc)
+        return API_ERROR_RESPONSE
 
 
 def say_response(orca, response, file_name="speech.wav"):
