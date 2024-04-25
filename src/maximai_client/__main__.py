@@ -202,13 +202,17 @@ def generate_response_mp3(query: str, user_id: str, logger, output_wav_file: str
         response.raise_for_status()
 
         # Write the response content to a .wav file
-        with open(output_wav_file, 'wb') as f:
-            f.write(response.content)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_path = Path(tmp_dir) / output_wav_file
+            with open(output_path, 'wb') as f:
+                f.write(response.content)
 
-        return output_wav_file
+        return str(output_path)
+
     except Exception as exc:
         logger.error(exc)
         return API_ERROR_RESPONSE
+
 
 def say_response(orca, response, logger, file_name="speech.wav"):
     logger.info("Saying response")
