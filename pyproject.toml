@@ -7,7 +7,7 @@ readme = "README.md"
 packages = [{include = "maximai_client", from = "src"}]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.9"
 pvcheetah = "^2.0.1"
 pvrecorder = "^1.2.2"
 pvporcupine = "^3.0.2"

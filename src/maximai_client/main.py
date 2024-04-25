@@ -142,11 +142,8 @@ def listen_query(recorder, cheetah, logger) -> str:
     return transcript
 
 
-def generate_response(query: str, user_id:str, logger) -> str:
-    prompt = Prompt(
-        text=query,
-        user_id=user_id
-    )
+def generate_response(query: str, user_id: str, logger) -> str:
+    prompt = Prompt(text=query, user_id=user_id)
 
     logger.info("Sending prompt")
     logging.debug(f"Prompt value: {prompt}")
@@ -154,7 +151,8 @@ def generate_response(query: str, user_id:str, logger) -> str:
     try:
         response = httpx.post(
             url="https://maximai-cnc2gks64q-ez.a.run.app/chat",
-            json=prompt.model_dump()
+            json=prompt.model_dump(),
+            timeout=10.0,
         )
         response.raise_for_status()
 
@@ -174,14 +172,18 @@ def say_response(orca, response, logger, file_name="speech.wav"):
 
         response_sanitized = sanitize(response)
         logger.debug(f"Response text: {response_sanitized}")
-        orca.synthesize_to_file(response_sanitized, output_path=str(output_path), speech_rate=1.0)
+        orca.synthesize_to_file(
+            response_sanitized, output_path=str(output_path), speech_rate=1.0
+        )
 
         song = AudioSegment.from_wav(str(output_path))
         play(song)
 
 
 def sanitize(text: str) -> str:
-    return re.sub("[^a-zA-Z0-9\.\,\-\s']", "", text.replace('\n', ''))
+    return re.sub(
+        "[^a-zA-Z0-9\.\,\-\s'?!:]", "", text.replace("\n", "").replace("’", "'")
+    )
 
 
 if __name__ == "__main__":
