@@ -12,6 +12,7 @@
 import logging
 from pathlib import Path
 import tempfile
+import re
 from typing import Annotated
 
 import dotenv
@@ -94,7 +95,7 @@ def main(
                         break
 
                     response = generate_response(query, user_id=user_id, logger=logger)
-                    say_response(orca=orca, response=response)
+                    say_response(orca=orca, response=response, logger=logger)
         finally:
             print()
             recorder.stop()
@@ -166,14 +167,21 @@ def generate_response(query: str, user_id:str, logger) -> str:
         return API_ERROR_RESPONSE
 
 
-def say_response(orca, response, file_name="speech.wav"):
-    logging.info("Generating response")
+def say_response(orca, response, logger, file_name="speech.wav"):
+    logger.info("Saying response")
     with tempfile.TemporaryDirectory() as tmp_dir:
         output_path = Path(tmp_dir) / file_name
-        orca.synthesize_to_file(response, output_path=str(output_path), speech_rate=1.0)
+
+        response_sanitized = sanitize(response)
+        logger.debug(f"Response text: {response_sanitized}")
+        orca.synthesize_to_file(response_sanitized, output_path=str(output_path), speech_rate=1.0)
 
         song = AudioSegment.from_wav(str(output_path))
         play(song)
+
+
+def sanitize(text: str) -> str:
+    return re.sub("[^a-zA-Z0-9\.\,\-\s']", "", text.replace('\n', ''))
 
 
 if __name__ == "__main__":
