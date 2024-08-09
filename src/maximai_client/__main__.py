@@ -20,7 +20,8 @@ import numpy as np
 
 API_ERROR_RESPONSE = "Sorry, I didn't understand. Can you repeat what you said?"
 END_PHRASES = {"by max.", "bye max.", "goodbye max."}
-API_URL = 'http://localhost:8080'
+# API_URL = 'http://localhost:8080'
+API_URL = 'https://maximai-ilndqscsla-ez.a.run.app'
 
 
 class Prompt(BaseModel):
