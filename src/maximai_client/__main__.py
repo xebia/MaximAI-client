@@ -20,6 +20,7 @@ import numpy as np
 
 API_ERROR_RESPONSE = "Sorry, I didn't understand. Can you repeat what you said?"
 END_PHRASES = {"by max.", "bye max.", "goodbye max."}
+API_URL = 'http://localhost:8080'
 
 
 class Prompt(BaseModel):
@@ -87,7 +88,7 @@ def main(
                     # say_response(orca=orca, response="Goodbye!")
                     break
 
-                response = generate_response_mp3(query, user_id=user_id, logger=logger)
+                response = generate_response_wav(query, user_id=user_id, logger=logger)
 
                 # say_response(orca=orca, response=response, logger=logger)
     except KeyboardInterrupt:
@@ -171,7 +172,7 @@ def generate_response(query: str, user_id: str, logger) -> str:
 
     try:
         response = httpx.post(
-            url="https://maximai-cnc2gks64q-ez.a.run.app/chat",
+            url=f"{API_URL}/chat",
             json=prompt.model_dump(),
             timeout=10.0,
         )
@@ -186,7 +187,7 @@ def generate_response(query: str, user_id: str, logger) -> str:
         return API_ERROR_RESPONSE
 
 
-def generate_response_mp3(query: str, user_id: str, logger, output_wav_file: str = "response.mp3") -> str:
+def generate_response_wav(query: str, user_id: str, logger, output_wav_file: str = "response.mp3") -> str:
     prompt = Prompt(text=query, user_id=user_id)
 
     logger.info("Sending prompt")
@@ -194,7 +195,7 @@ def generate_response_mp3(query: str, user_id: str, logger, output_wav_file: str
 
     try:
         response = httpx.post(
-            url="https://maximai-v2-cnc2gks64q-ez.a.run.app/text_audio",
+            url=f"{API_URL}/text_audio",
             json=prompt.model_dump(),
             timeout=10.0,
         )
@@ -208,8 +209,8 @@ def generate_response_mp3(query: str, user_id: str, logger, output_wav_file: str
             with output_path.open("wb",) as f:
                 f.write(response.content)
 
-            song = AudioSegment.from_mp3(str(output_path))
-            play(song)
+            audio = AudioSegment.from_wav(str(output_path))
+            play(audio)
 
         return str(output_path)
 
